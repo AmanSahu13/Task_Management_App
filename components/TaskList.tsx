@@ -126,9 +126,14 @@ export function TaskList({ tasks, onUpdateTask, onDeleteTask }: TaskListProps) {
                       <ThemedText style={styles.statusText}>{task.status}</ThemedText>
                     </View>
                     {renderPriorityIcon(task.priority)}
-                    <ThemedText style={styles.taskDate}>
-                      {format(task.dueDate, 'MMM dd, yyyy')}
-                    </ThemedText>
+                    <View style={styles.dateTimeContainer}>
+                      <ThemedText style={styles.taskDateText}>
+                        {format(task.dueDate, 'MMM dd, yyyy')}
+                      </ThemedText>
+                      <ThemedText style={styles.taskTime}>
+                        {format(task.dueDate, 'hh:mm a')}
+                      </ThemedText>
+                    </View>
                   </View>
                 </View>
                 <Menu>
@@ -196,9 +201,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     color: '#000000',
   },
-  taskDate: {
+  taskDateText: {
     color: '#666666',
-    fontSize: 12,
+    fontSize: 14,
   },
   priorityIndicator: {
     width: 8,
@@ -259,5 +264,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
     color: '#666666',
+  },
+  dateTimeContainer: {
+    alignItems: 'flex-end',
+  },
+  taskDate: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  taskTime: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
   },
 }); 

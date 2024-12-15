@@ -4,7 +4,7 @@ import { IconSymbol } from './ui/IconSymbol';
 import { useState } from 'react';
 import { Task } from '@/types/task';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import { format, addHours } from 'date-fns';
 import * as Notifications from 'expo-notifications';
 
 interface AddTaskModalProps {
@@ -19,24 +19,48 @@ export function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalProps) {
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [dueDate, setDueDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const scheduleNotification = async (taskTitle: string, dueDate: Date) => {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') return;
 
-      // Schedule notification for 1 hour before due date
-      const trigger = new Date(dueDate);
-      trigger.setHours(trigger.getHours() - 1);
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
+      // Schedule multiple notifications
+      const notifications = [
+        {
           title: 'Task Due Soon',
           body: `The task "${taskTitle}" is due in 1 hour!`,
-          data: { taskId: Date.now().toString() },
+          hours: 1
         },
-        trigger,
-      });
+        {
+          title: 'Task Due Now',
+          body: `The task "${taskTitle}" is due now! Please update the status.`,
+          hours: 0
+        },
+        {
+          title: 'Task Overdue',
+          body: `The task "${taskTitle}" is overdue! Please complete it or update the status.`,
+          hours: -1 // 1 hour after due time
+        }
+      ];
+
+      for (const notification of notifications) {
+        const trigger = new Date(dueDate);
+        trigger.setHours(trigger.getHours() - notification.hours);
+        
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: notification.title,
+            body: notification.body,
+            data: { 
+              taskId: Date.now().toString(),
+              type: 'task_reminder'
+            },
+          },
+          trigger,
+        });
+      }
     } catch (error) {
       console.error('Error scheduling notification:', error);
     }
@@ -67,7 +91,20 @@ export function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalProps) {
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      setDueDate(selectedDate);
+      const newDate = new Date(selectedDate);
+      newDate.setHours(dueDate.getHours());
+      newDate.setMinutes(dueDate.getMinutes());
+      setDueDate(newDate);
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (selectedTime) {
+      const newDate = new Date(dueDate);
+      newDate.setHours(selectedTime.getHours());
+      newDate.setMinutes(selectedTime.getMinutes());
+      setDueDate(newDate);
     }
   };
 
@@ -103,15 +140,27 @@ export function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalProps) {
             numberOfLines={4}
           />
 
-          <TouchableOpacity 
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <IconSymbol name="calendar" size={24} color="#666666" />
-            <ThemedText style={styles.dateText}>
-              {format(dueDate, 'PPP')}
-            </ThemedText>
-          </TouchableOpacity>
+          <View style={styles.dateTimeContainer}>
+            <TouchableOpacity 
+              style={[styles.dateTimeButton, { marginRight: 8 }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <IconSymbol name="calendar" size={24} color="#666666" />
+              <ThemedText style={styles.dateTimeText}>
+                {format(dueDate, 'MMM dd, yyyy')}
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.dateTimeButton}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <IconSymbol name="clock.fill" size={24} color="#666666" />
+              <ThemedText style={styles.dateTimeText}>
+                {format(dueDate, 'hh:mm a')}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
 
           {showDatePicker && (
             Platform.OS === 'web' ? (
@@ -120,17 +169,12 @@ export function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalProps) {
                 value={format(dueDate, 'yyyy-MM-dd')}
                 onChange={(e) => {
                   const date = new Date(e.target.value);
+                  date.setHours(dueDate.getHours());
+                  date.setMinutes(dueDate.getMinutes());
                   setDueDate(date);
                   setShowDatePicker(false);
                 }}
-                style={{
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  width: '100%',
-                }}
+                style={styles.webDateInput}
               />
             ) : (
               <DateTimePicker
@@ -139,6 +183,31 @@ export function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalProps) {
                 display="default"
                 onChange={handleDateChange}
                 minimumDate={new Date()}
+              />
+            )
+          )}
+
+          {showTimePicker && (
+            Platform.OS === 'web' ? (
+              <input
+                type="time"
+                value={format(dueDate, 'HH:mm')}
+                onChange={(e) => {
+                  const [hours, minutes] = e.target.value.split(':');
+                  const newDate = new Date(dueDate);
+                  newDate.setHours(parseInt(hours));
+                  newDate.setMinutes(parseInt(minutes));
+                  setDueDate(newDate);
+                  setShowTimePicker(false);
+                }}
+                style={styles.webDateInput}
+              />
+            ) : (
+              <DateTimePicker
+                value={dueDate}
+                mode="time"
+                display="default"
+                onChange={handleTimeChange}
               />
             )
           )}
@@ -241,18 +310,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  dateButton: {
+  dateTimeContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  dateTimeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    marginBottom: 16,
   },
-  dateText: {
+  dateTimeText: {
     marginLeft: 8,
     fontSize: 16,
     color: '#666666',
+  },
+  webDateInput: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 16,
+    width: '100%',
   },
 }); 

@@ -5,6 +5,7 @@ import { OpaqueColorValue, StyleProp, TextStyle } from 'react-native'; // Change
 
 // Add your SFSymbol to MaterialIcons mappings here.
 const MAPPING = {
+  'time': 'access-time',
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
