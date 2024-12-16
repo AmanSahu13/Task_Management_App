@@ -266,6 +266,10 @@ const createStyles = (themeColors: typeof Colors['light']) => StyleSheet.create(
     fontSize: 12,
     fontWeight: 'bold',
   },
+  taskHeaderText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
 });
 
 const NOTIFICATION_TYPES = {
@@ -796,7 +800,15 @@ export default function HomeScreen() {
 
         {/* Task Header */}
         <View style={styles.taskHeader}>
-          <ThemedText type="subtitle">Tasks</ThemedText>
+          <ThemedText 
+            style={[
+              styles.taskHeaderText,
+              { color: themeColors.text }
+            ]} 
+            type="subtitle"
+          >
+            Tasks
+          </ThemedText>
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => setIsAddTaskVisible(true)}
